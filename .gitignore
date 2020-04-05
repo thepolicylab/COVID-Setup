@@ -1,0 +1,17 @@
+# Things with secrets
+config.yml
+Makefile
+state_report.Rmd
+
+# This repository's creations
+data/
+.cache/
+
+# Python cruft
+__pycache__
+*.pyc
+*.egg-info/
+venv/
+
+# vscode cruft
+.vscode/

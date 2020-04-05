@@ -1,0 +1,53 @@
+{% set types = ['simulations', 'hospitalization', 'importation', 'filter', 'reports'] %}
+.PHONY: clean rerun {{ types | map('format_string', 'clean_{}') | join(' ') }} {{ types | map('format_string', 'rerun_{}') | join(' ') }}
+
+NCOREPER={{ num_cores }}
+RSCRIPT=Rscript
+PYTHON=python3
+PIPELINE=COVIDScenarioPipeline
+CONFIG={{ config_path }}
+OUTPUTBASE={{ output_base }}
+
+.files/{{ num_sims }}_importation: 
+	$(RSCRIPT) $(PIPELINE)/R/scripts/importation.R -c $(CONFIG) -j $(NCOREPER)
+	touch .files/{{ num_sims }}_importation
+
+.files/{{ num_sims }}_filter: .files/{{ num_sims }}_importation
+	$(RSCRIPT) $(PIPELINE)/R/scripts/create_filter.R -c $(CONFIG)
+	touch .files/{{ num_sims }}_filter
+
+{% for simulation_name in simulation_names %}
+.files/{{ num_sims }}_simulation_{{ simulation_name }}: .files/{{ num_sims }}_filter .files/{{ num_sims }}_importation
+	$(PYTHON) $(PIPELINE)/simulate.py -c $(CONFIG) -s {{ simulation_name }} -n 100 -j $(NCOREPER)
+	touch .files/{{ num_sims }}_simulation_{{ simulation_name }}
+{% endfor %}
+
+{% for simulation_name in simulation_names %}
+  {% for death_rate_name in death_rate_names %}
+.files/{{ num_sims }}_hospitalization_{{ simulation_name }}_{{ death_rate_name }}: .files/{{ num_sims }}_simulation_{{ simulation_name }}
+	$(RSCRIPT) $(PIPELINE)/R/scripts/hosp_run.R -s {{ simulation_name }} -d {{ death_rate_name }} -j $(NCOREPER) -c $(CONFIG)
+	touch .files/{{ num_sims }}_hospitalization_{{ simulation_name }}_{{ death_rate_name }}
+  {% endfor %}
+{% endfor %}
+
+{# These occur at the bottom of every Makefile #}
+
+clean: {{ types | map('format_string', 'clean_{}') | join(' ') }}
+
+rerun: {{ types | map('format_string', 'rerun_{}') | join(' ') }}
+
+{% for type in types %}
+  {% if type in ['simulations', 'hospitalization'] %}
+    {% set prefix = 'model_output' %}
+  {% elif type in ['importation', 'reports'] %}
+    {% set prefix = type %}
+  {% else %}
+    {% set prefix = 'data' %}
+  {% endif %}
+
+{{ type | format_string('clean_{}') }}:
+	rm -rf {{ prefix }}/{{ type }}
+
+{{ type | format_string('rerun_{}') }}: {{ type | format_string('clean_{}') }}
+	rm -rf .files/*_{{ type }}
+{% endfor %}
