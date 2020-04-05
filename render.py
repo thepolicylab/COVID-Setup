@@ -127,7 +127,7 @@ def import_mobility(config_file: str, use_cache: bool):
           datum = json.load(infile)
       else:
         print(f'{state} not present in cache. Pulling from Census API')
-        datum = c.acs.state_county('B01001_001E', fips, '*', year=census_year)
+        datum = c.acs.state_county('B01003_001E', fips, '*', year=census_year)
         with open(cache_file, 'wt') as outfile:
           json.dump(datum, outfile)
     data.extend(datum)
@@ -138,7 +138,7 @@ def import_mobility(config_file: str, use_cache: bool):
 
   geodata = pd.DataFrame({
     'geoid': census_df['COUNTYFP'].apply(int),  # TODO(khw): This int is the source of later bugs
-    'pop2010': census_df['B01001_001E'].apply(int),
+    'pop2010': census_df['B01003_001E'].apply(int),
     'stateUSPS': census_df['state'].map(fips_to_state)
   }).sort_values('geoid')
 
