@@ -145,7 +145,7 @@ def import_mobility(config_file: str, use_cache: bool):
   print('Computing mobility')
   commute_by_county = commute_data.groupby(['OCOUNTYFP', 'DCOUNTYFP'])['FLOW'].sum().reset_index()
   mobility_df = commute_by_county.pivot_table(
-    index='OCOUNTYFP', columns='DCOUNTYFP', values='FLOW', aggfunc='sum'
+    index='OCOUNTYFP', columns='DCOUNTYFP', values='FLOW', aggfunc='sum', fill_value=0.0
   )
 
   # Make sure that everything is consistently sorted
@@ -229,6 +229,7 @@ def pull_shapefiles(config_file: str, use_cache: bool):
 
       gdf['NAME'] = gdf['NAME'] + " County, " + gdf['state_abbr']
 
+  gdf['GEOID'] = gdf.GEOID.astype(int)  # This should make everything consistent
   gdf.to_file(spatial_base_path / spatial_config['shapefile'])
 
 
