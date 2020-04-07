@@ -50,6 +50,7 @@ docker run --rm \
   -v "$(pwd)/Makefile:/home/app/covidsp/Makefile" \
   -v "$(pwd)/state_report.Rmd:/home/app/covidsp/report/state_report.Rmd" \
   -v "$(pwd)/compile_Rmd.R:/home/app/covidsp/compile_Rmd.R" \
+  -v "$(pwd)/ReportReferences.bib:/home/app/covidsp/report/ReportReferences.bib" \
   covid
 ```
 

@@ -8,7 +8,7 @@ PIPELINE=COVIDScenarioPipeline
 CONFIG={{ config_path }}
 OUTPUTBASE={{ output_base }}
 
-report: {% for simulation_name in simulation_names %} .files/{{ num_sims }}_simulation_{{ simulation_name }} {% for death_rate_name in death_rate_names %} .files/{{ num_sims }}_hospitalization_{{ simulation_name }}_{{ death_rate_name }} {% endfor %} {% endfor %}
+report: {% for simulation_name in simulation_names %} .files/{{ num_sims }}_simulation_{{ simulation_name }} {% for death_rate_name in death_rate_names %} .files/{{ num_sims }}_hospitalization_{{ simulation_name }}_{{ death_rate_name }} {% endfor %} {% endfor %} 
 	$(RSCRIPT) compile_Rmd.R
 	touch .files/{{ num_sims }}_report
 
@@ -22,7 +22,7 @@ report: {% for simulation_name in simulation_names %} .files/{{ num_sims }}_simu
 
 {% for simulation_name in simulation_names %}
 .files/{{ num_sims }}_simulation_{{ simulation_name }}: .files/{{ num_sims }}_filter .files/{{ num_sims }}_importation
-	$(PYTHON) $(PIPELINE)/simulate.py -c $(CONFIG) -s {{ simulation_name }} -n 100 -j $(NCOREPER)
+	$(PYTHON) $(PIPELINE)/simulate.py -c $(CONFIG) -s {{ simulation_name }} -n {{ num_sims }} -j $(NCOREPER)
 	touch .files/{{ num_sims }}_simulation_{{ simulation_name }}
 {% endfor %}
 
