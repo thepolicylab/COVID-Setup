@@ -6,12 +6,14 @@ state_report.Rmd
 # This repository's creations
 data/
 .cache/
+output/
 
 # Python cruft
 __pycache__
 *.pyc
 *.egg-info/
 venv/
+.ipynb_checkpoints/
 
 # vscode cruft
 .vscode/

@@ -25,14 +25,8 @@ pip install -r requirements.txt
 # Create the makefile
 python3 render.py makefile -c config.yml -o Makefile
 
-# Create the report template
-python3 render.py report -c config.yml -o state_report.Rmd
-
 # Get the necessary shapefiles
 python3 render.py shapefile -c config.yml --use-cache
-
-# Get the model's seed
-python3 render.py mobility -c config.yml --use-cache
 
 # Build the docker file
 cd docker
@@ -48,10 +42,17 @@ docker run --rm \
   -v "$(pwd)/output:/home/app/covidsp/final_model_output" \
   -v "$(pwd)/data:/home/app/covidsp/data" \
   -v "$(pwd)/Makefile:/home/app/covidsp/Makefile" \
-  -v "$(pwd)/state_report.Rmd:/home/app/covidsp/report/state_report.Rmd" \
-  -v "$(pwd)/compile_Rmd.R:/home/app/covidsp/compile_Rmd.R" \
-  -v "$(pwd)/ReportReferences.bib:/home/app/covidsp/report/ReportReferences.bib" \
   covid
 ```
 
+After everything is finished, you should find a file whose name looks like `output.*.tar.gz` in
+your output folder. This contains all the simulated output from the above command.
+
+The easiest thing to do with this is to open up `hospitalization_plots.ipynb` in a jupyter
+(Python) notebook and hit `Restart and Run All`, which will generate several plots.
+
 In future runs, you can just execute the last line after switching up the `config.yml`.
+
+### TODO
+
+Figure out why our input rebuild script doesn't produce the same output as their input rebuild script.

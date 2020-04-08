@@ -9,7 +9,6 @@ CONFIG={{ config_path }}
 OUTPUTBASE={{ output_base }}
 
 report: {% for simulation_name in simulation_names %} .files/{{ num_sims }}_simulation_{{ simulation_name }} {% for death_rate_name in death_rate_names %} .files/{{ num_sims }}_hospitalization_{{ simulation_name }}_{{ death_rate_name }} {% endfor %} {% endfor %} 
-	$(RSCRIPT) compile_Rmd.R
 	touch .files/{{ num_sims }}_report
 
 .files/{{ num_sims }}_importation: 
