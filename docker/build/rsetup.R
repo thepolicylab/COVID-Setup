@@ -5,5 +5,3 @@ devtools::install_github(repo='HopkinsIDD/COVIDScenarioPipeline', subdir='R/pkgs
 install.packages("reticulate")
 install.packages("kableExtra")
 install.packages("xml2")
-# install.packages("tinytex")
-# tinytex::install_tinytex()
