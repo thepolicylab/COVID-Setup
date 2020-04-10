@@ -26,6 +26,7 @@ pip install -r requirements.txt
 python3 render.py makefile -c config.yml -o Makefile
 
 # Get the necessary shapefiles
+mkdir data
 python3 render.py shapefile -c config.yml --use-cache
 
 # Build the docker file
