@@ -1,0 +1,179 @@
+---
+title: \textbf{COVID-19 Modeling}
+author: "The Policy Lab"
+date: \today
+output: pdf_document
+geometry: margin=0.5in
+---
+
+\hspace{70 mm}
+
+\begin{center}
+\fontsize{16 pt}{16 pt}\selectfont
+\textbf{Preliminaries} 
+\end{center}
+
+The plots and outputs below ... <BLAH, BLAH, BLAH, MORE, WORDS, HERE>
+
+\hspace{60 mm}
+
+
+
+```{python, echo = FALSE, engine.path = '/Users/pstey/anaconda3/bin/python'}
+
+import glob
+import re
+import tarfile
+
+import warnings
+
+warnings.simplefilter("ignore")
+    
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+
+
+
+
+tfile = tarfile.open('/Users/pstey/projects/COVID-Setup/output/output-2020-04-08T18-15-31.tar.gz')
+
+```
+
+
+\begin{center}
+\fontsize{16 pt}{16 pt}\selectfont
+\textbf{Hospital Beds Occupied} 
+\end{center}
+
+```{python, echo = FALSE, results = 'hide'}
+dirnames = ['Mid', 'Mild', 'Severe', 'NoCoronavirus', 'MMTestIsolate', 'MMInfluenza']
+scenario_names = ['1918-Style', 'Reopen', 'Test and Isolate', 'Did nothing', '(MM) Test and Isolate', '(MM) 1918-Style']
+death_rate_name = 'med'
+
+
+dfs = []
+for member in tfile.getmembers():
+    match = re.match(f'hospitalization/model_output/minimal_(.*)/{death_rate_name}.*csv', member.name)
+    if match:
+        dirname = match.groups()[0]
+        scenario_name = scenario_names[dirnames.index(dirname)]
+        f = tfile.extractfile(member)
+        df = pd.read_csv(f)
+        df = df[df['geoid'] // 1000 == 44]  # Pull out RI from the simulation
+        df = df[df['comp'] == 'diffI']
+        df['scenario_name'] = scenario_name
+        dfs.append(df)
+        
+df = pd.concat(dfs)
+
+
+```
+
+```{python, echo = FALSE}
+# There are 5 counties in RI
+assert (df.groupby(['scenario_name', 'time', 'sim_num']).size() == 5).all()
+```
+
+```{python, echo = FALSE}
+
+# Add all counties in RI
+grouped = df.groupby(['sim_num', 'time', 'scenario_name'])[['hosp_curr', 'icu_curr', 'incidD', 'incidH', 'incidI']].sum().reset_index()
+grouped['time'] = pd.to_datetime(grouped.time)
+```
+
+
+
+```{python, echo = FALSE, results = 'hide'}
+fig, ax = plt.subplots(figsize=(10, 8))
+
+grouped['Scenario'] = grouped.scenario_name
+blah = sns.lineplot(
+    data = grouped,
+    x = 'time',
+    y = 'hosp_curr',
+    hue='Scenario',
+    ax = ax
+)
+
+plt.xticks(rotation=45)
+plt.ylabel('Number Hospital Beds Occupied per Day')
+
+box = ax.get_position()
+ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+# Put a legend to the right of the current axis
+ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+plt.grid(axis='both')
+plt.title('Median bolded; 95% CI in bands')
+```
+
+
+
+```{python, echo = FALSE, results = 'hide'}
+fig, ax = plt.subplots(figsize=(10, 8))
+
+grouped['Scenario'] = grouped.scenario_name
+blah = sns.lineplot(
+    data = grouped,
+    x = 'time',
+    y = 'icu_curr',
+    hue='Scenario',
+    ax = ax
+)
+
+plt.xticks(rotation=45)
+plt.ylabel('Number ICU Beds Occupied per Day')
+
+box = ax.get_position()
+ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+# Put a legend to the right of the current axis
+ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+plt.grid(axis='both')
+plt.title('Median bolded; 95% CI in bands')
+```
+
+
+
+```{python, echo = FALSE}
+def low_quantile(x): 
+    return np.quantile(x, 0.025)
+
+def high_quantile(x): 
+    return np.quantile(x, 0.975)
+
+def create_pivot_display(focus, col):
+    pivoted = focus.groupby(['scenario_name', 'months', 'sim_num'])[col].sum().reset_index()\
+        .pivot_table(index='scenario_name', columns='months', values=col, aggfunc=[
+        'median', low_quantile, high_quantile]).astype(int)
+    return (pivoted['median'].applymap(lambda x: '{:,}'.format(x)) + 
+            '  (' + pivoted['low_quantile'].applymap(lambda x: '{:,}'.format(x)) +
+            ' – ' + pivoted['high_quantile'].applymap(lambda x: '{:,}'.format(x)) +
+            ')')
+
+```
+
+
+```{python, echo = FALSE}
+focus = grouped[grouped['time'] >= '03-01-2020'].copy()
+focus['period'] = focus['time'].dt.month // 2
+focus['months'] = focus.period.map({1: '03-04', 2: '05-06', 3: '07-08', 4: '09-10'})
+
+#print('Peak hospital occupancy in period (median + 95% CI)')
+create_pivot_display(focus, 'hosp_curr').to_csv("tmp_hosp_curr_df.csv")   # HACK: embarrassing...write to disk for R to read
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+library(reticulate)
+library(knitr)
+library(kableExtra)
+library(readr)
+library(dplyr)
+
+dat <- read_csv("tmp_hosp_curr_df.csv")
+kable(dat, align = c("l", rep("r", 4)), booktabs = TRUE) %>%
+    kable_styling(full_width = FALSE, font_size = 9) 
+```
