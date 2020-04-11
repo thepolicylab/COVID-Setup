@@ -3,6 +3,7 @@ click
 geopandas
 jinja2
 numpy
+oyaml
 pandas
 requests
 us

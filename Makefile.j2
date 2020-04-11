@@ -8,11 +8,11 @@ PIPELINE=COVIDScenarioPipeline
 CONFIG={{ config_path }}
 OUTPUTBASE={{ output_base }}
 
-report: {% for simulation_name in simulation_names %} .files/{{ num_sims }}_simulation_{{ simulation_name }} {% for death_rate_name in death_rate_names %} .files/{{ num_sims }}_hospitalization_{{ simulation_name }}_{{ death_rate_name }} {% endfor %} {% endfor %} 
+report: {% for simulation_name in simulation_names %} .files/{{ num_sims }}_simulation_{{ simulation_name }} {% for death_rate_name in death_rate_names %} .files/{{ num_sims }}_hospitalization_{{ simulation_name }}_{{ death_rate_name }} {% endfor %} {% endfor %}
 	touch .files/{{ num_sims }}_report
 
-.files/{{ num_sims }}_importation: 
-	$(RSCRIPT) $(PIPELINE)/R/scripts/importation.R -c $(CONFIG) -j $(NCOREPER)
+.files/{{ num_sims }}_importation:
+	$(RSCRIPT) $(PIPELINE)/R/scripts/importation.R -c $(CONFIG) -j 1 # only runs for mcm with 1
 	touch .files/{{ num_sims }}_importation
 
 .files/{{ num_sims }}_filter: .files/{{ num_sims }}_importation

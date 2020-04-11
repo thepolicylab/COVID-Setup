@@ -201,7 +201,7 @@ def pull_shapefiles(config_file: str, use_cache: bool):
             response = requests.get(BASE_URL_2010.format(fips=fips), stream=True)
             for block in response.iter_content(1024):
               outfile.write(block)
-            
+
         gdf = gpd.read_file(f'zip://{fips_file.absolute()}')
         gdf['state_abbr'] = state_abbr
         gdfs.append(gdf)
@@ -210,7 +210,7 @@ def pull_shapefiles(config_file: str, use_cache: bool):
     for col in ['STATEFP', 'COUNTYFP', 'GEOID', 'NAME']:
       gdf[col] = gdf[f'{col}10']
       gdf['NAME'] = gdf['NAME10'] + " County, " + gdf.state_abbr
-  
+
   else:
     # We're sometime after 2010 when the file format changed
     with cache_directory(use_cache) as tmpdir:

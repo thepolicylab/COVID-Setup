@@ -2,15 +2,22 @@
 title: \textbf{COVID-19 Modeling}
 author: "The Policy Lab"
 date: \today
-output: pdf_document
+output:
+    pdf_document:
+        keep_tex: true
 geometry: margin=0.5in
 ---
+
+```{r setup-r, include=FALSE}
+library(reticulate)
+use_python("/usr/bin/python3")
+```
 
 \hspace{70 mm}
 
 \begin{center}
 \fontsize{16 pt}{16 pt}\selectfont
-\textbf{Preliminaries} 
+\textbf{Preliminaries}
 \end{center}
 
 The plots and outputs below ... <BLAH, BLAH, BLAH, MORE, WORDS, HERE>
@@ -19,73 +26,59 @@ The plots and outputs below ... <BLAH, BLAH, BLAH, MORE, WORDS, HERE>
 
 
 
-```{python, echo = FALSE, engine.path = '/Users/pstey/anaconda3/bin/python'}
+```{python setup-python, echo = FALSE}
 
-import glob
 import re
-import tarfile
+import os
+import glob
 
 import warnings
 
 warnings.simplefilter("ignore")
-    
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-
-
-
-
-tfile = tarfile.open('/Users/pstey/projects/COVID-Setup/output/output-2020-04-08T18-15-31.tar.gz')
-
+import oyaml as yaml
 ```
 
+# Hospitalization
 
-\begin{center}
-\fontsize{16 pt}{16 pt}\selectfont
-\textbf{Hospital Beds Occupied} 
-\end{center}
+```{python get-data, echo = FALSE, results = 'hide'}
+with open("config.yml") as f:
+    config = yaml.safe_load(f)
 
-```{python, echo = FALSE, results = 'hide'}
-dirnames = ['Mid', 'Mild', 'Severe', 'NoCoronavirus', 'MMTestIsolate', 'MMInfluenza']
-scenario_names = ['1918-Style', 'Reopen', 'Test and Isolate', 'Did nothing', '(MM) Test and Isolate', '(MM) 1918-Style']
+dirnames = config["interventions"]["scenarios"]
+scenario_names = [dir.replace("_"," ") for dir in dirnames]
 death_rate_name = 'med'
 
-
+r = re.compile('.*minimal_(.*)/.*')
 dfs = []
-for member in tfile.getmembers():
-    match = re.match(f'hospitalization/model_output/minimal_(.*)/{death_rate_name}.*csv', member.name)
+for entry in glob.glob(f'hospitalization/model_output/minimal_*/{death_rate_name}*csv'):
+    match = r.match(entry)
     if match:
         dirname = match.groups()[0]
         scenario_name = scenario_names[dirnames.index(dirname)]
-        f = tfile.extractfile(member)
-        df = pd.read_csv(f)
+        df = pd.read_csv(entry)
         df = df[df['geoid'] // 1000 == 44]  # Pull out RI from the simulation
         df = df[df['comp'] == 'diffI']
         df['scenario_name'] = scenario_name
         dfs.append(df)
-        
+
 df = pd.concat(dfs)
 
-
-```
-
-```{python, echo = FALSE}
 # There are 5 counties in RI
 assert (df.groupby(['scenario_name', 'time', 'sim_num']).size() == 5).all()
-```
-
-```{python, echo = FALSE}
 
 # Add all counties in RI
 grouped = df.groupby(['sim_num', 'time', 'scenario_name'])[['hosp_curr', 'icu_curr', 'incidD', 'incidH', 'incidI']].sum().reset_index()
 grouped['time'] = pd.to_datetime(grouped.time)
 ```
 
+## Hospital Beds Occupied per Day
 
-
-```{python, echo = FALSE, results = 'hide'}
+```{python hosp-beds, echo = FALSE, results = 'hide'}
 fig, ax = plt.subplots(figsize=(10, 8))
 
 grouped['Scenario'] = grouped.scenario_name
@@ -109,9 +102,10 @@ plt.grid(axis='both')
 plt.title('Median bolded; 95% CI in bands')
 ```
 
+## ICU Beds Occupied per Day
 
 
-```{python, echo = FALSE, results = 'hide'}
+```{python hosp-icu, echo = FALSE, results = 'hide'}
 fig, ax = plt.subplots(figsize=(10, 8))
 
 grouped['Scenario'] = grouped.scenario_name
@@ -135,20 +129,21 @@ plt.grid(axis='both')
 plt.title('Median bolded; 95% CI in bands')
 ```
 
+## Hospitalization Statistics
 
 
-```{python, echo = FALSE}
-def low_quantile(x): 
+```{python setup-hosp-table, echo = FALSE}
+def low_quantile(x):
     return np.quantile(x, 0.025)
 
-def high_quantile(x): 
+def high_quantile(x):
     return np.quantile(x, 0.975)
 
 def create_pivot_display(focus, col):
     pivoted = focus.groupby(['scenario_name', 'months', 'sim_num'])[col].sum().reset_index()\
         .pivot_table(index='scenario_name', columns='months', values=col, aggfunc=[
         'median', low_quantile, high_quantile]).astype(int)
-    return (pivoted['median'].applymap(lambda x: '{:,}'.format(x)) + 
+    return (pivoted['median'].applymap(lambda x: '{:,}'.format(x)) +
             '  (' + pivoted['low_quantile'].applymap(lambda x: '{:,}'.format(x)) +
             ' – ' + pivoted['high_quantile'].applymap(lambda x: '{:,}'.format(x)) +
             ')')
@@ -162,18 +157,17 @@ focus['period'] = focus['time'].dt.month // 2
 focus['months'] = focus.period.map({1: '03-04', 2: '05-06', 3: '07-08', 4: '09-10'})
 
 #print('Peak hospital occupancy in period (median + 95% CI)')
-create_pivot_display(focus, 'hosp_curr').to_csv("tmp_hosp_curr_df.csv")   # HACK: embarrassing...write to disk for R to read
+pivot = create_pivot_display(focus, 'hosp_curr')
 ```
 
 
-```{r, echo = FALSE, message = FALSE, warning = FALSE}
-library(reticulate)
+```{r hosp-table, echo = FALSE, message = FALSE, warning = FALSE}
 library(knitr)
 library(kableExtra)
 library(readr)
 library(dplyr)
 
-dat <- read_csv("tmp_hosp_curr_df.csv")
+dat <- py$pivot
 kable(dat, align = c("l", rep("r", 4)), booktabs = TRUE) %>%
-    kable_styling(full_width = FALSE, font_size = 9) 
+    kable_styling(full_width = FALSE, font_size = 9)
 ```
