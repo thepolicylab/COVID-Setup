@@ -11,7 +11,7 @@ RUN Rscript /tmp/build/rsetup.R
 RUN bash /tmp/build/pipelinesetup.sh
 
 # python
-RUN sudo apt-get update && sudo apt-get -y install python python3-pip texlive-latex-base texlive-latex-extra
+RUN sudo apt-get update && sudo apt-get -y install python python3-pip texlive-latex-extra texlive-xetex
 RUN /usr/bin/python3 -m pip install -r /tmp/build/requirements.txt
 
 # files needed in run

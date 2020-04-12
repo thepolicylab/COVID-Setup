@@ -6,20 +6,23 @@ output:
     pdf_document:
         keep_tex: true
     beamer_presentation:
+        latex_engine: xelatex
         keep_tex: true
         theme: metropolis
+        slide_level: 2
+        includes:
+            in_header: header.tex
 geometry: margin=0.5in
 ---
 
 ```{r setup-r, include=FALSE}
 library(reticulate)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+
 use_python("/usr/bin/python3")
 ```
-
-# Introduction
-
-The plots and outputs below ... <BLAH, BLAH, BLAH, MORE, WORDS, HERE>
-
 
 ```{python setup-python, echo = FALSE}
 
@@ -36,18 +39,63 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import oyaml as yaml
-```
 
-# Hospitalization
-
-```{python get-data, echo = FALSE, results = 'hide'}
 with open("config.yml") as f:
     config = yaml.safe_load(f)
 
 dirnames = config["interventions"]["scenarios"]
 scenario_names = [dir.replace("_"," ") for dir in dirnames]
 death_rate_name = 'med'
+```
 
+# Background
+
+## Modeling
+
+* Pipeline work provided by Johns Hopkins
+* Based on SEIR framework
+* Now open sourced for many states to use
+
+## Inputs
+
+* Viral characteristics
+    * Hospitalization rates (now provided by John Fulton)
+    * Time in hospital (now provided by John Fulton)
+    * Baseline R0 [2-3]
+* Current caseloads
+    * Based on JHU’s tracking. Could be improved by line lists.
+* Effect of various measures on R0
+    * JHU provided some measures based on literature
+    * Further research by epidemiologists necessary here
+* Filters for absurd simulations
+    * Would be based on line lists and other inputs
+
+# Scenarios Modeled
+
+```{r enumerate-scenarios, include=FALSE}
+out = NULL
+for (i in seq_along(py$scenario_names)) {
+    if ((i-1)%%3 == 0) {
+        out = c(out, knit_expand(text='## Scenarios Modeled\n'))
+    }
+    out = c(out, knit_expand(text='#### {{py$scenario_names[i]}}\n * FILL_THIS_IN\n'))
+}
+```
+
+`r paste(knit(text = out), collapse = '\n')`
+
+## Assumptions
+
+* Assumptions are based on “observed” data from China and South Korea (ROK)
+    * Chinese data is perhaps not to be totally trusted in this situation
+    * South Korea (ROK) seems more correct, but estimates are still preliminary
+* Data on hospitalization rates, death rates, and other important measures of virality are constantly improving estimates of therapeutic course, which affects hospital occupancy estimates.
+* Does not make assumptions about available equipment / capacity. Incorporating that obviously lessens direct hospital burdens but at high (mortality) and unknown (further disease spread?) cost.
+
+
+# Outcomes
+
+```{python get-data, echo = FALSE, results = 'hide'}
 r = re.compile('.*minimal_(.*)/.*')
 dfs = []
 for entry in glob.glob(f'hospitalization/model_output/minimal_*/{death_rate_name}*csv'):
@@ -74,7 +122,9 @@ grouped['time'] = pd.to_datetime(grouped.time)
 ## Hospital Beds Occupied per Day
 
 ```{python hosp-beds, echo = FALSE, results = 'hide'}
-fig, ax = plt.subplots(figsize=(10, 8))
+fig, ax = plt.subplots(figsize=(10, 5.5))
+
+ax.set_facecolor((0, 0, 0, 0))
 
 grouped['Scenario'] = grouped.scenario_name
 blah = sns.lineplot(
@@ -101,7 +151,8 @@ plt.title('Median bolded; 95% CI in bands')
 
 
 ```{python hosp-icu, echo = FALSE, results = 'hide'}
-fig, ax = plt.subplots(figsize=(10, 8))
+fig, ax = plt.subplots(figsize=(10, 5.5))
+ax.set_facecolor((0, 0, 0, 0))
 
 grouped['Scenario'] = grouped.scenario_name
 blah = sns.lineplot(
@@ -124,10 +175,7 @@ plt.grid(axis='both')
 plt.title('Median bolded; 95% CI in bands')
 ```
 
-## Hospitalization Statistics
-
-
-```{python setup-hosp-table, echo = FALSE}
+```{python setup-pivot-table, echo = FALSE}
 def low_quantile(x):
     return np.quantile(x, 0.025)
 
@@ -138,31 +186,63 @@ def create_pivot_display(focus, col):
     pivoted = focus.groupby(['scenario_name', 'months', 'sim_num'])[col].sum().reset_index()\
         .pivot_table(index='scenario_name', columns='months', values=col, aggfunc=[
         'median', low_quantile, high_quantile]).astype(int)
+    pivoted = pivoted.div(1000)
+    pivoted = pivoted.round(1)
     return (pivoted['median'].applymap(lambda x: '{:,}'.format(x)) +
             '  (' + pivoted['low_quantile'].applymap(lambda x: '{:,}'.format(x)) +
             ' – ' + pivoted['high_quantile'].applymap(lambda x: '{:,}'.format(x)) +
             ')')
 
-```
-
-
-```{python, echo = FALSE}
 focus = grouped[grouped['time'] >= '03-01-2020'].copy()
 focus['period'] = focus['time'].dt.month // 2
 focus['months'] = focus.period.map({1: '03-04', 2: '05-06', 3: '07-08', 4: '09-10'})
+```
 
-#print('Peak hospital occupancy in period (median + 95% CI)')
+## Detail Table: Peak Hospitalization Occupancy (in 1000s)
+
+```{python pivot-hosp, echo = FALSE}
 pivot = create_pivot_display(focus, 'hosp_curr')
 ```
 
-
-```{r hosp-table, echo = FALSE, message = FALSE, warning = FALSE}
-library(knitr)
-library(kableExtra)
-library(readr)
-library(dplyr)
-
+```{r detail-hosp, echo = FALSE, message = FALSE, warning = FALSE}
 dat <- py$pivot
-kable(dat, align = c("l", rep("r", 4)), booktabs = TRUE) %>%
-    kable_styling(full_width = FALSE, font_size = 8)
+kable(dat, align = c(rep("r", 4)), booktabs = TRUE) %>%
+    kable_styling(full_width = FALSE, font_size = 6)
+```
+
+## Detail Table: Peak ICU Occupancy (in 1000s)
+
+```{python pivot-icu, echo = FALSE}
+pivot = create_pivot_display(focus, 'icu_curr')
+```
+
+```{r detail-icu, echo = FALSE, message = FALSE, warning = FALSE}
+dat <- py$pivot
+kable(dat, align = c(rep("r", 4)), booktabs = TRUE) %>%
+    kable_styling(full_width = FALSE, font_size = 6)
+```
+
+
+## Detail Table: Deaths (in 1000s)
+
+```{python pivot-death, echo = FALSE}
+pivot = create_pivot_display(focus, 'incidD')
+```
+
+```{r detail-death, echo = FALSE, message = FALSE, warning = FALSE}
+dat <- py$pivot
+kable(dat, align = c(rep("r", 4)), booktabs = TRUE) %>%
+    kable_styling(full_width = FALSE, font_size = 6)
+```
+
+## Detail Table: Infections (in 1000s)
+
+```{python pivot-infections, echo = FALSE}
+pivot = create_pivot_display(focus, 'incidI')
+```
+
+```{r detail-infections, echo = FALSE, message = FALSE, warning = FALSE}
+dat <- py$pivot
+kable(dat, align = c(rep("r", 4)), booktabs = TRUE) %>%
+    kable_styling(full_width = FALSE, font_size = 6)
 ```
