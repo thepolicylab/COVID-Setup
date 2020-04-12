@@ -5,6 +5,9 @@ date: \today
 output:
     pdf_document:
         keep_tex: true
+    beamer_presentation:
+        keep_tex: true
+        theme: metropolis
 geometry: margin=0.5in
 ---
 
@@ -13,17 +16,9 @@ library(reticulate)
 use_python("/usr/bin/python3")
 ```
 
-\hspace{70 mm}
-
-\begin{center}
-\fontsize{16 pt}{16 pt}\selectfont
-\textbf{Preliminaries}
-\end{center}
+# Introduction
 
 The plots and outputs below ... <BLAH, BLAH, BLAH, MORE, WORDS, HERE>
-
-\hspace{60 mm}
-
 
 
 ```{python setup-python, echo = FALSE}
@@ -169,5 +164,5 @@ library(dplyr)
 
 dat <- py$pivot
 kable(dat, align = c("l", rep("r", 4)), booktabs = TRUE) %>%
-    kable_styling(full_width = FALSE, font_size = 9)
+    kable_styling(full_width = FALSE, font_size = 8)
 ```
