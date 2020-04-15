@@ -40,7 +40,7 @@ import pandas as pd
 import seaborn as sns
 import oyaml as yaml
 
-with open("config.yml") as f:
+with open("../../config.yml") as f:
     config = yaml.safe_load(f)
 
 dirnames = config["interventions"]["scenarios"]
@@ -98,7 +98,7 @@ for (i in seq_along(py$scenario_names)) {
 ```{python get-data, echo = FALSE, results = 'hide'}
 r = re.compile('.*minimal_(.*)/.*')
 dfs = []
-for entry in glob.glob(f'hospitalization/model_output/minimal_*/{death_rate_name}*csv'):
+for entry in glob.glob(f'../../hospitalization/model_output/minimal_*/{death_rate_name}*csv'):
     match = r.match(entry)
     if match:
         dirname = match.groups()[0]
